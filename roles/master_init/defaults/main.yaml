@@ -1,0 +1,35 @@
+---
+mi_image_repository: registry.k8s.io
+mi_containerd_sock: "{{ containerd_sock | d('unix:///var/run/containerd/containerd.sock') }}"
+mi_cri_socket: "{{ mi_containerd_sock }}"
+
+mi_k8s_domain_name: cluster.local
+mi_k8s_service_cidr: "10.233.0.0/18"
+mi_k8s_pod_network_cidr: "10.233.64.0/18"
+mi_nodelocaldns_local_ip: "169.254.25.10"
+mi_nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.22.17"
+
+mi_system_reserved: true
+mi_system_memory_reserved: 512Mi
+mi_system_cpu_reserved: 500m
+mi_system_ephemeral_storage_reserved: 2Gi
+mi_container_log_max_size: 10Mi
+mi_container_log_max_files: 5
+
+mi_default_endpoint: "{{ hostvars[ansible_play_hosts_all[0]].ansible_facts.default_ipv4.address }}"
+mi_control_plane_endpoint: "{{ ha_lb_address | d(mi_default_endpoint) }}:{{ ha_lb_port | d(6443) }}"
+mi_controller_feature_gates: []
+mi_apiserver_enable_admission_plugins:
+  - AlwaysPullImages
+  - LimitPodHardAntiAffinityTopology
+
+mi_calico:
+  tigera_version: v3.26.1
+  encapsulation: "IPIPCrossSubnet"
+  unmanaged_ifaces:
+    - "cali*"
+    - "tunl*"
+    - vxlan.calico
+    - vxlan-v6.calico
+    - wireguard.cali
+    - wg-v6.cali

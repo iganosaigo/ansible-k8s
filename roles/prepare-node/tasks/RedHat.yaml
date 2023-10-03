@@ -1,0 +1,39 @@
+# TODO: Move to direct downloading binaries. Or not?
+- name: Repo | Kubernetes
+  ansible.builtin.yum_repository:
+    name: "{{ pn_pkg_manager.dnf.k8s.repo_name }}"
+    description: "{{ pn_pkg_manager.dnf.k8s.repo_name | title }}"
+    baseurl: "{{ pn_pkg_manager.dnf.k8s.repo }}"
+    gpgcheck: "{{ pn_pkg_manager.dnf.k8s.gpg_check }}"
+    gpgkey: "{{ pn_pkg_manager.dnf.k8s.gpg_url }}"
+    exclude: "{{ pn_pkg_manager.dnf.k8s.repo_excludes | join(' ') }}"
+
+- name: Repo | Docker
+  ansible.builtin.yum_repository:
+    name: "{{ pn_pkg_manager.dnf.docker.repo_name }}"
+    baseurl: "{{ pn_pkg_manager.dnf.docker.repo }}"
+    description: "{{ pn_pkg_manager.dnf.docker.repo_name | title }}"
+    gpgcheck: "{{ pn_pkg_manager.dnf.docker.gpg_check }}"
+    gpgkey: "{{ pn_pkg_manager.dnf.docker.gpg_url }}"
+
+- name: Dnf | Base packages
+  ansible.builtin.dnf:
+    name: "{{ pn_pkg_manager.dnf.packages }}"
+    state: present
+    disable_excludes: "{{ pn_pkg_manager.dnf.k8s.repo_name }}"
+
+- name: Systemd | Disable firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    state: stopped
+    enabled: false
+
+- name: Selinux | Check and Disable SELinux on boot
+  ansible.posix.selinux:
+    state: disabled
+  register: __selinux_status
+
+- name: Command | Disable SELinux
+  ansible.builtin.command: setenforce 0
+  when: __selinux_status.reboot_required
+  changed_when: false

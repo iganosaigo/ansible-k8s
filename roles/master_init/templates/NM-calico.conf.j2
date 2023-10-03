@@ -1,0 +1,5 @@
+{% set ifaces_list = [] -%}
+{% for iface in mi_calico.unmanaged_ifaces %}
+{{ ifaces_list.append( "interface-name:" + iface ) }}
+{%- endfor -%}
+unmanaged-devices={{ ifaces_list | join(';') }}

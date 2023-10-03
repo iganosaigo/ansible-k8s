@@ -1,0 +1,41 @@
+---
+- name: Template | NetworkManager calico drop-in
+  ansible.builtin.template:
+    src: NM-calico.conf.j2
+    dest: /etc/NetworkManager/conf.d/calico.conf
+    mode: "0644"
+
+- name: Command | kubectl tigera status
+  ansible.builtin.command:
+    cmd: "kubectl get ns tigera-operator"
+  changed_when: false
+  register: __tigera_ns
+  failed_when:
+    - __tigera_ns.stderr is not search('"tigera-operator" not found')
+    - __tigera_ns.rc != 0
+
+- name: Set_fact | tigera_absent flag
+  ansible.builtin.set_fact:
+    _is_tigera_absent: "{{
+        __tigera_ns.rc != 0 and
+        __tigera_ns.stderr is search('\"tigera-operator\" not found')
+      }}"
+
+- name: Command | Install tigera-operator
+  ansible.builtin.command: >-
+    kubectl create -f
+    https://raw.githubusercontent.com/projectcalico/calico/{{ mi_calico.tigera_version }}/manifests/tigera-operator.yaml
+  when: _is_tigera_absent
+
+- name: Template | calico-config.yaml
+  ansible.builtin.template:
+    src: calico-config.yaml.j2
+    dest: /etc/kubernetes/calico-config.yaml
+    mode: '0644'
+  register: __calico_config
+
+- name: Command | kubectl apply calico-config
+  ansible.builtin.command:
+    cmd: kubectl apply -f /etc/kubernetes/calico-config.yaml
+  when:
+    - __calico_config.changed

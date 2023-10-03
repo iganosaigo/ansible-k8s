@@ -1,0 +1,26 @@
+vrrp_script chk_haproxy {
+  script "killall -0 haproxy"
+  interval 2
+  weight 2
+}
+
+
+vrrp_instance VI_1 {
+  interface {{ ansible_facts.default_ipv4.interface }}
+  virtual_router_id 51
+{% if inventory_hostname == ansible_play_hosts_all[0] %}
+  state MASTER
+  priority 200
+{% else %}
+  state BACKUP
+  priority 100
+{% endif %}
+
+  virtual_ipaddress {
+    {{ ha_lb_address }}/24
+  }
+
+  track_script {
+    chk_haproxy
+  }
+}

@@ -1,0 +1,38 @@
+---
+- name: Command | kubeadm token create
+  ansible.builtin.command: kubeadm token create
+  register: __join_token
+  changed_when: false
+
+- name: Shell | Get discovery-token-ca-cert-hash
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt |
+    openssl rsa -pubin -outform der 2>/dev/null |
+    openssl dgst -sha256 -hex |
+    sed 's/^.* //'
+  register: __join_ca_hash
+  changed_when: false
+
+- name: Shell | kubeadm upload certs
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    kubeadm init phase upload-certs --upload-certs | tail -1
+  register: __cert_key
+  changed_when: false
+
+- name: Shell | Get join path
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' |
+    sed 's%https\?://%%'
+  register: __join_path
+  changed_when: false
+
+- name: Set_fact | Gather join variables
+  ansible.builtin.set_fact:
+    _join_token: "{{ __join_token.stdout }}"
+    _join_ca_hash: "{{ __join_ca_hash.stdout }}"
+    _cert_key: "{{ __cert_key.stdout }}"
+    _join_path: "{{ __join_path.stdout }}"
+    _first_node: "{{ ansible_play_hosts_all[0] }}"

@@ -1,0 +1,14 @@
+k8s_master:
+  hosts:
+    kubem01:
+    kubem02:
+    kubem03:
+k8s_worker:
+  hosts:
+    kubew01:
+    kubew02:
+    kubew03:
+k8s_cluster:
+  children:
+    k8s_master:
+    k8s_worker:

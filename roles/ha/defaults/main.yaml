@@ -1,0 +1,7 @@
+ha_sysctls:
+  - name: net.ipv4.ip_nonlocal_bind
+    value: 1
+
+# ha_lb_address:
+ha_lb_port: 7443
+ha_lb_type: haproxy

@@ -1,0 +1,35 @@
+---
+- name: Sysctl | params for HA
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+  loop: "{{ ha_sysctls }}"
+
+# Only RedHat-based for now
+- name: Dnf | Install packages for HA
+  when: ansible_os_family == "RedHat"
+  ansible.builtin.dnf:
+    name:
+      - keepalived
+      - haproxy
+      - nginx
+    state: present
+
+- name: Template | Keepalived config
+  ansible.builtin.template:
+    src: keepalived.j2
+    dest: /etc/keepalived/keepalived.conf
+    mode: "0644"
+  notify: Restart keepalived
+
+- name: Template | Haproxy config
+  ansible.builtin.template:
+    src: haproxy.j2
+    dest: /etc/haproxy/haproxy.cfg
+    mode: "0644"
+  notify: Restart haproxy
+  when: ha_lb_type == 'haproxy'
+
+- name: Meta | Flush Handlers
+  ansible.builtin.meta: flush_handlers

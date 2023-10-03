@@ -1,0 +1,27 @@
+---
+- name: Stat | kubeadm pki ca key
+  ansible.builtin.stat:
+    path: "/etc/kubernetes/pki/ca.key"
+  register: __kubeadm_ca
+
+# TODO: Move group logic to playbook
+- name: Command | kubeadm join control plane
+  when: not __kubeadm_ca.stat.exists
+  ansible.builtin.command:
+    cmd: >-
+      kubeadm join {{ hostvars[groups['k8s_master'][0]]._join_path }}
+      --token {{ hostvars[groups['k8s_master'][0]]._join_token }}
+      --discovery-token-ca-cert-hash sha256:{{ hostvars[groups['k8s_master'][0]]._join_ca_hash }}
+      --control-plane --certificate-key {{ hostvars[groups['k8s_master'][0]]._cert_key }}
+
+- name: File | /root/.kube
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    mode: '0750'
+
+- name: File | Link for kubeconfig
+  ansible.builtin.file:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    state: link

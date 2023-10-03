@@ -1,0 +1,38 @@
+---
+- name: Reset cluster
+  hosts: k8s_cluster
+  strategy: free
+  tasks:
+    - name: Command | Kubeadm reset
+      ansible.builtin.command: kubeadm reset --force
+
+    - name: Systemd | Disable containerd
+      ansible.builtin.systemd:
+        name: containerd
+        state: stopped
+        enabled: false
+
+    - name: Systemd | Disable keepalived and haproxy
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      with_items:
+        - keepalived
+        - haproxy
+      when:
+        - inventory_hostname in groups['k8s_master']
+        - ha_lb_address is defined
+        - ha_lb_address is truthy
+
+    - name: Command | Flush chains, ipset, etc...
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+      loop:
+        - iptables -F
+        - iptables -t nat -F
+        - iptables -t mangle -F
+        - iptables -X
+        - nft flush ruleset
+        - ipset destroy
+        - ipvsadm -C

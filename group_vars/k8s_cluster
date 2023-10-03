@@ -1,0 +1,10 @@
+---
+# Versions: 1.24.[0-15], 1.25.[0-11], 1.26.[0-6], 1.27.[0-3]
+k8s_version: 1.25.0
+
+ha_lb_type: haproxy
+ha_lb_address: 192.168.2.40
+ha_lb_port: 7443
+
+containerd_sock: "unix:///var/run/containerd/containerd.sock"
+

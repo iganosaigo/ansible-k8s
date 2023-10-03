@@ -1,0 +1,92 @@
+---
+# Not needed for now
+# - name: Load Vars file based on Distro or OS
+#   ansible.builtin.include_vars: "{{ platform }}"
+#   with_first_found:
+#     - files:
+#         - "{{ ansible_distribution }}.yaml"
+#         - "{{ ansible_os_family }}.yaml"
+#         - main.yaml
+#       paths: "{{ role_path }}/vars"
+#   loop_control:
+#     loop_var: platform
+
+- name: Include | Load tasks based on Distro or OS
+  ansible.builtin.include_tasks: "{{ platform }}"
+  with_first_found:
+    - files:
+        - "{{ ansible_distribution }}.yaml"
+        - "{{ ansible_os_family }}.yaml"
+      paths: "{{ role_path }}/tasks"
+  loop_control:
+    loop_var: platform
+
+- name: Command | Disable Swap
+  ansible.builtin.command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+  register: __swapoff
+  changed_when: false
+  failed_when: __swapoff.rc != 0
+
+- name: Replace | Disable Swap with fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\s*swap\s*.*)$'
+    replace: '# \1'
+
+- name: Template | Custom containerd config
+  ansible.builtin.template:
+    src: containerd/config.toml.j2
+    dest: /etc/containerd/config.toml
+    mode: "0644"
+  notify: Restart containerd
+  when: pn_containerd_custom_config | bool
+
+- name: Shell | Generate containerd config
+  ansible.builtin.shell:
+    cmd: "containerd config default > config.toml"
+    creates: /etc/containerd/config.toml
+    chdir: /etc/containerd
+  notify: Restart containerd
+  when: not pn_containerd_custom_config | bool
+
+- name: Template | crictl.yaml
+  ansible.builtin.template:
+    src: crictl.yaml.j2
+    dest: /etc/crictl.yaml
+    owner: root
+    mode: "0644"
+
+- name: Modprobe | Base modules
+  community.general.modprobe:
+    name: "{{ module }}"
+  loop: "{{ pn_kernel_modules }}"
+  loop_control:
+    loop_var: module
+
+- name: Template | Base modules persistance
+  ansible.builtin.template:
+    src: modules.conf.j2
+    dest: /etc/modules-load.d/kubernetes.conf
+    mode: "0644"
+
+- name: Sysctl | Base kernel params
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+  loop: "{{ pn_sysctls }}"
+
+- name: Systemd | Enable kubelet
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: true
+    masked: false
+
+- name: Lineinfile | kubectl cmds in .bashrc
+  ansible.builtin.lineinfile:
+    path: /root/.bashrc
+    line: "{{ item }}"
+  loop:
+    - "source <(kubectl completion bash)"
+    - "alias k=kubectl"

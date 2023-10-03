@@ -1,0 +1,21 @@
+---
+- name: Restart containerd
+  ansible.builtin.command: /bin/true
+  notify:
+    - Containerd | restart containerd
+    - Containerd | wait for containerd
+
+- name: Containerd | restart containerd
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted
+    enabled: true
+    daemon-reload: true
+    masked: false
+
+- name: Containerd | wait for containerd
+  ansible.builtin.command: "/usr/bin/ctr images ls -q"
+  register: __containerd_status
+  retries: 4
+  delay: 4
+  until: __containerd_status.rc == 0

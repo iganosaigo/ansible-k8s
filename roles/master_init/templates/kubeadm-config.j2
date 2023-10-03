@@ -1,0 +1,113 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+bootstrapTokens:
+- groups:
+  - system:bootstrappers:kubeadm:default-node-token
+  # token: token
+  ttl: 24h0m0s
+  usages:
+  - signing
+  - authentication
+localAPIEndpoint:
+  advertiseAddress: {{ hostvars[ansible_play_hosts_all[0]].ansible_facts.default_ipv4.address }}
+  bindPort: 6443
+nodeRegistration:
+  criSocket: {{ mi_cri_socket }}
+  imagePullPolicy: IfNotPresent
+  name: {{ ansible_facts.nodename }}
+  taints: []
+#  - effect: NoSchedule
+#    key: node-role.kubernetes.io/master
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+certificatesDir: /etc/kubernetes/pki
+clusterName: {{ mi_k8s_domain_name }}
+controllerManager:
+  extraArgs:
+    node-monitor-grace-period: 40s
+    node-monitor-period: 5s
+    cluster-cidr: "{{ mi_k8s_pod_network_cidr }}"
+    service-cluster-ip-range: "{{ mi_k8s_service_cidr }}"
+    node-cidr-mask-size: "24"
+    profiling: "False"
+    terminated-pod-gc-threshold: "12500"
+    bind-address: 0.0.0.0
+    leader-elect-lease-duration: 15s
+    leader-elect-renew-deadline: 10s
+    configure-cloud-routes: "false"
+{% if mi_controller_feature_gates | length %}
+    feature-gates: "{{ mi_controller_feature_gates | product(['=True']) | map('join') | join(',') }}"
+{% endif %}
+dns: {}
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+imageRepository: {{ mi_image_repository }}
+apiServer:
+  timeoutForControlPlane: 4m0s
+  extraArgs:
+    allow-privileged: "true"
+    profiling: "False"
+    anonymous-auth: "True"
+    authorization-mode: Node,RBAC
+    bind-address: 0.0.0.0
+    service-cluster-ip-range: {{ mi_k8s_service_cidr }}
+    service-node-port-range: 30000-32767
+    event-ttl: 6h0m0s
+{% if mi_apiserver_enable_admission_plugins | length %}
+    enable-admission-plugins: {{ mi_apiserver_enable_admission_plugins | join(',') }}
+{% endif %}
+kubernetesVersion: {{ k8s_version }}
+controlPlaneEndpoint: {{ mi_control_plane_endpoint }}
+networking:
+  dnsDomain: {{ mi_k8s_domain_name }}
+  podSubnet: {{ mi_k8s_pod_network_cidr }}
+  serviceSubnet: {{ mi_k8s_service_cidr }}
+scheduler: {}
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+bindAddress: 0.0.0.0
+clusterCIDR: {{ mi_k8s_pod_network_cidr }}
+enableProfiling: False
+hostnameOverride: {{ ansible_facts.nodename }}
+configSyncPeriod: 5m0s
+mode: ipvs
+ipvs:
+  excludeCIDRs: []
+  minSyncPeriod: 0s
+  scheduler: rr
+  syncPeriod: 30s
+  strictARP: True
+  tcpTimeout: 0s
+  tcpFinTimeout: 0s
+  udpTimeout: 0s
+metricsBindAddress: 127.0.0.1:10249
+nodePortAddresses: []
+oomScoreAdj: -999
+portRange: 
+udpIdleTimeout: 250ms
+
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: systemd
+clusterDNS:
+- {{ mi_nodelocaldns_local_ip }}
+systemReserved:
+{% if mi_system_memory_reserved is truthy %}
+  memory: {{ mi_system_memory_reserved }}
+{% endif %}
+{% if mi_system_cpu_reserved is truthy %}
+  cpu: {{ mi_system_cpu_reserved }}
+{% endif %}
+{% if mi_system_ephemeral_storage_reserved is truthy %}
+  ephemeral-storage: {{ mi_system_ephemeral_storage_reserved }}
+{% endif %}
+{% if mi_container_log_max_size is truthy %}
+containerLogMaxSize: {{ mi_container_log_max_size }}
+{% endif %}
+{% if mi_container_log_max_size is truthy %}
+containerLogMaxFiles: {{ mi_container_log_max_files }}
+{% endif %}

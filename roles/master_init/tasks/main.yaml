@@ -1,0 +1,24 @@
+---
+- name: File | Create /etc/kubernetes
+  ansible.builtin.file:
+    path: /etc/kubernetes
+    state: directory
+    mode: "0755"
+
+- name: File | Create /root/.kube
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    mode: "0600"
+
+- name: Include | Tasks to init the cluster
+  ansible.builtin.include_tasks:
+    file: init.yaml
+
+- name: Include | Tasks to configure dns
+  ansible.builtin.include_tasks:
+    file: dns.yaml
+
+- name: Include | Tasks to configure CNI
+  ansible.builtin.include_tasks:
+    file: calico.yaml

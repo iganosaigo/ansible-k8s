@@ -1,0 +1,53 @@
+---
+
+pn_k8s_version: "{{ k8s_version | d(1.25.0) }}"
+pn_k8s_repo_version: "{{ pn_k8s_version | regex_search('1.2[4-8]') | d('1.24', true) }}"
+
+pn_pkg_manager:
+  dnf:
+    k8s:
+      repo_name: kubernetes
+      repo: "https://pkgs.k8s.io/core:/stable:/v{{ pn_k8s_repo_version }}/rpm/"
+      gpg_check: true
+      gpg_url: "https://pkgs.k8s.io/core:/stable:/v{{ pn_k8s_repo_version }}/rpm/repodata/repomd.xml.key"
+      repo_excludes:
+        - kubelet
+        - kubeadm
+        - kubectl
+        - cri-tools
+        - kubernetes-cni
+    docker:
+      repo_name: docker
+      repo: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
+      gpg_check: true
+      gpg_url: 'https://download.docker.com/linux/centos/gpg'
+    packages:
+      - vim
+      - git
+      - net-tools
+      - bash-completion
+      - nfs-utils
+      - python3
+      - tar
+      - containerd
+      - jq
+      - kubectl-{{ k8s_version }}
+      - kubelet-{{ k8s_version }}
+      - kubeadm-{{ k8s_version }}
+      - ipvsadm
+      - tcpdump
+
+pn_containerd_sock: "{{ containerd_sock | d('unix:///var/run/containerd/containerd.sock') }}"
+pn_containerd_custom_config: true
+
+pn_kernel_modules:
+  - br_netfilter
+  - overlay
+
+pn_sysctls:
+  - name: net.ipv4.ip_forward
+    value: 1
+  - name: net.bridge.bridge-nf-call-iptables
+    value: 1
+  - name: net.bridge.bridge-nf-call-ip6tables
+    value: 1

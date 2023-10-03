@@ -1,0 +1,28 @@
+---
+- name: Prepare k8s nodes
+  hosts: k8s_cluster
+  strategy: free
+  roles:
+    - role: prepare-node
+      tags: prepare
+
+- name: Install Control nodes
+  hosts: k8s_master
+  roles:
+    - role: ha
+      when:
+        - ha_lb_address is defined
+        - ha_lb_address is truthy
+      tags: ha
+    - role: master_init
+      when: inventory_hostname == groups['k8s_master'][0]
+      tags: init
+    - role: master_join
+      tags: master_join
+      serial: 1
+
+- name: Install worker nodes
+  hosts: k8s_master[0],k8s_worker
+  roles:
+    - role: worker
+      tags: worker_join

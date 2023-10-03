@@ -1,0 +1,8 @@
+---
+- name: Include | Prepare to control node join
+  ansible.builtin.include_tasks: prepare.yaml
+  when: inventory_hostname == ansible_play_hosts_all[0]
+
+- name: Include | Join control node
+  ansible.builtin.include_tasks: join.yaml
+  when: inventory_hostname != ansible_play_hosts_all[0]
